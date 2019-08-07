@@ -13,24 +13,25 @@ import (
 	"os"
 	"bufio"
 	"time"
+	"strconv"
 	"golang.org/x/net/publicsuffix"
 )
 
-const Version = "1.0"
+const Version = "1.1"
 const BodyLimit = 1024*1024
 const MaxQueuedUrls = 4096
-const MaxVisitedUrls = 8192
-const UserAgent = "dcrawl/1.0"
-
+//const MaxVisitedUrls = 16384
 var http_client *http.Client
-
 var (
+	time_epoch = strconv.FormatInt(time.Now().Unix(), 10)
 	start_url = flag.String("url", "", "URL to start scraping from")
-	output_file = flag.String("out", "", "output file to save hostnames to")
-	max_threads = flag.Int("t", 8, "number of concurrent threads (def. 8)")
-	max_urls_per_domain = flag.Int("mu", 5, "maximum number of links to spider per hostname (def. 5)")
-	max_subdomains = flag.Int("ms", 10, "maximum different subdomains for one domain (def. 10)")
-	verbose = flag.Bool("v", false, "verbose (def. false)")
+	output_file = flag.String("out", "scraped.domains_" + time_epoch + ".txt", "Output file to save hostnames to")
+	max_threads = flag.Int("t", 8, "Number of concurrent threads")
+	max_visited_urls = flag.Int("mv", 16384, "Max. urls to visit/save to output file")
+	max_urls_per_domain = flag.Int("mu", 10, "Max. links to spider per hostname")
+	max_subdomains = flag.Int("ms", 10, "Max. different subdomains for one domain")
+	user_agent = flag.String("A", "dcrawl/" + string(Version), "User-Agent to use")
+	verbose = flag.Bool("v", false, "Verbose")
 )
 
 type ParsedUrl struct {
@@ -53,7 +54,7 @@ func get_html(u string) ([]byte, error) {
 		return nil, err
 	}
 
-	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("User-Agent", *user_agent)
 
 	resp, err := http_client.Do(req)
 	if err != nil {
@@ -132,6 +133,7 @@ func is_blacklisted(u string) (bool) {
 	var blhosts []string = []string{
 		"google.com", ".google.", "facebook.com", "twitter.com", ".gov", "youtube.com", "wikipedia.org", "wikisource.org", "wikibooks.org", "deviantart.com",
 		"wiktionary.org", "wikiquote.org", "wikiversity.org", "wikia.com", "deviantart.com", "blogspot.", "wordpress.com", "tumblr.com", "about.com",
+		".gc.ca", "google.ca", "archive.org", "github.com", 
 	}
 
 	for _, bl := range blhosts {
@@ -145,13 +147,13 @@ func is_blacklisted(u string) (bool) {
 func create_http_client() *http.Client {
 	var transport = &http.Transport{
 		Dial: (&net.Dialer{
-			Timeout: 10 * time.Second,
+			Timeout: 8 * time.Second,
 		}).Dial,
-		TLSHandshakeTimeout: 5 * time.Second,
+		TLSHandshakeTimeout: 4 * time.Second,
 		DisableKeepAlives: true,
 	}
 	client := &http.Client{
-		Timeout: time.Second * 10,
+		Timeout: time.Second * 8,
 		Transport: transport,
 	}
 	return client
@@ -180,15 +182,17 @@ func main() {
 
 	flag.Parse()
 
-	if *start_url == "" || *output_file == "" {
+	if *start_url == "" {
 		usage()
 		return
 	}
 
 	fmt.Printf("[*] output file: %s\n", *output_file)
+	fmt.Printf("[*] user-agent:  %s\n", *user_agent)
 	fmt.Printf("[*] start URL:   %s\n", *start_url)
 	fmt.Printf("[*] max threads: %d\n", *max_threads)
 	fmt.Printf("[*] max links:   %d\n", *max_urls_per_domain)
+	fmt.Printf("[*] max visits:  %d\n", *max_visited_urls)
 	fmt.Printf("[*] max subd:    %d\n", *max_subdomains)
 	fmt.Printf("\n")
 
@@ -199,7 +203,7 @@ func main() {
 	var qurls []string
 	var thosts []string
 
-	fo, err := os.OpenFile(*output_file, os.O_APPEND, 0666)
+	fo, err := os.OpenFile(*output_file, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0664)
 	if os.IsNotExist(err) {
 		fo, err = os.Create(*output_file)
 	}
@@ -303,8 +307,10 @@ func main() {
 			in_url <- u
 			tu++
 		}
-		if len(vurls) >= MaxVisitedUrls {
-			vurls = make(map[string]bool)
+		if len(vurls) >= *max_visited_urls {
+			//vurls = make(map[string]bool)
+			fmt.Fprintf(os.Stderr, "ERROR: max visited urls (%d) reached!\n", *max_visited_urls)
+			return
 		}
 	}
 }
