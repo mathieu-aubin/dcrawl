@@ -135,7 +135,7 @@ func is_blacklisted(u string) (bool) {
 		"google.com", ".google.", "facebook.com", "twitter.com", ".gov", "youtube.com", "wikipedia.org", "wikisource.org", "wikibooks.org", "deviantart.com",
 		"wiktionary.org", "wikiquote.org", "wikiversity.org", "wikia.com", "blogspot.", "wordpress.com", "tumblr.com", "about.com", ".gc.ca", "google.ca",
 		"archive.org", "github.com", "t.co", "zoom.us", "zeroserieux.com", "speedinternet.ca", "desjardins.com", "www.desjardins", "www.interac.ca",
-		"www.visa.", "paypal.com",
+		"www.visa.", "paypal.com", "bit.ly", "gouv.qc.ca",
 	}
 
 	for _, bl := range blhosts {
