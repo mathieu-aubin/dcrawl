@@ -17,17 +17,18 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
-const Version = "1.1"
+const Version = "1.2"
 const BodyLimit = 1024*1024
 const MaxQueuedUrls = 4096
-//const MaxVisitedUrls = 16384
+
 var http_client *http.Client
+
 var (
 	time_epoch = strconv.FormatInt(time.Now().Unix(), 10)
 	start_url = flag.String("url", "", "URL to start scraping from")
 	output_file = flag.String("out", "scraped.domains_" + time_epoch + ".txt", "Output file to save hostnames to")
 	max_threads = flag.Int("t", 8, "Number of concurrent threads")
-	max_visited_urls = flag.Int("mv", 16384, "Max. urls to visit/save to output file")
+	max_visited_urls = flag.Int("mv", 16384, "Max. urls to visit")
 	max_urls_per_domain = flag.Int("mu", 10, "Max. links to spider per hostname")
 	max_subdomains = flag.Int("ms", 10, "Max. different subdomains for one domain")
 	user_agent = flag.String("A", "dcrawl/" + string(Version), "User-Agent to use")
@@ -132,8 +133,9 @@ func process_urls(in <-chan string, out chan<- ParsedUrl) {
 func is_blacklisted(u string) (bool) {
 	var blhosts []string = []string{
 		"google.com", ".google.", "facebook.com", "twitter.com", ".gov", "youtube.com", "wikipedia.org", "wikisource.org", "wikibooks.org", "deviantart.com",
-		"wiktionary.org", "wikiquote.org", "wikiversity.org", "wikia.com", "deviantart.com", "blogspot.", "wordpress.com", "tumblr.com", "about.com",
-		".gc.ca", "google.ca", "archive.org", "github.com", 
+		"wiktionary.org", "wikiquote.org", "wikiversity.org", "wikia.com", "blogspot.", "wordpress.com", "tumblr.com", "about.com", ".gc.ca", "google.ca",
+		"archive.org", "github.com", "t.co", "zoom.us", "zeroserieux.com", "speedinternet.ca", "desjardins.com", "www.desjardins", "www.interac.ca",
+		"www.visa.", "paypal.com",
 	}
 
 	for _, bl := range blhosts {
@@ -308,9 +310,9 @@ func main() {
 			tu++
 		}
 		if len(vurls) >= *max_visited_urls {
-			//vurls = make(map[string]bool)
-			fmt.Fprintf(os.Stderr, "ERROR: max visited urls (%d) reached!\n", *max_visited_urls)
-			return
+			vurls = make(map[string]bool)
+			//fmt.Fprintf(os.Stderr, "ERROR: max visited urls (%d) reached!\n", *max_visited_urls)
+			//return
 		}
 	}
 }
